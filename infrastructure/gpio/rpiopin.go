@@ -8,10 +8,6 @@ import (
 
 type rpioPin uint8
 
-func createRpioPin() rpioPin {
-	return 2 //todo
-}
-
 func (p rpioPin) ReadState() (bool, error) {
 	pin := rpio.Pin(p)
 	return rpio.ReadPin(pin) == rpio.High, nil

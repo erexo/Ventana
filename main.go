@@ -7,37 +7,38 @@ import (
 	"os/signal"
 	"runtime/debug"
 
-	"github.com/Erexo/Ventana/core/domain"
+	"github.com/Erexo/Ventana/api"
 	"github.com/Erexo/Ventana/infrastructure/gpio"
+	"github.com/Erexo/Ventana/infrastructure/sunblind"
 )
 
 func main() {
 	fmt.Println("Hello")
-	defer terminate()
+	defer panic()
 
 	pm := gpio.CreatePinManager()
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c)
-	go func() {
-		x := <-c
-		log.Println("Terminated", x)
-		err := pm.Close()
-		if err != nil {
-			log.Println("PinManager Close failed:", err)
-		}
-		os.Exit(0)
-	}()
+	go terminate(pm, c)
 
-	register(pm, 0, 2)
-	register(pm, 1, 3)
+	ss := sunblind.CreateService(pm)
+	if err := ss.Load(); err != nil {
+		log.Println("SunblindService error:", err)
+	}
+
+	// todo, add flag to run api
+	if err := api.Run(ss); err != nil {
+		log.Println("Api error:", err)
+	}
 
 	fmt.Fscanln(os.Stdout)
 	fmt.Println("Bye")
 }
 
-func terminate() {
+func panic() {
 	if r := recover(); r != nil {
+		// todo, check if panic do terminate
 		var ok bool
 		err, ok := r.(error)
 		if !ok {
@@ -49,14 +50,12 @@ func terminate() {
 	}
 }
 
-func register(pm *gpio.PinManager, input, output uint8) error {
-	ip, err := domain.CreateMcpPin(0, input)
+func terminate(pm *gpio.PinManager, c chan os.Signal) {
+	x := <-c
+	log.Println("Terminated", x)
+	err := pm.Close()
 	if err != nil {
-		return err
+		log.Println("PinManager Close failed:", err)
 	}
-	op, err := domain.CreateMcpPin(0, output)
-	if err != nil {
-		return err
-	}
-	return pm.AddPinPair(ip, op)
+	os.Exit(0)
 }

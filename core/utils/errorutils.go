@@ -1,6 +1,11 @@
 package utils
 
-import "github.com/pkg/errors"
+import (
+	"fmt"
+
+	"github.com/pkg/errors"
+)
+
 
 func ConcatErrors(e1, e2 error) error {
 	if e1 == nil {
@@ -9,4 +14,8 @@ func ConcatErrors(e1, e2 error) error {
 		return e1
 	}
 	return errors.Wrap(e1, e2.Error())
+}
+
+func NotFoundError(entityId int, entityName string) error {
+	return fmt.Errorf("%v with Id '%v' does not exist", entityName, entityId)
 }

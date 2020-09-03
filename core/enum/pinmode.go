@@ -5,12 +5,12 @@ import (
 	"github.com/stianeikeland/go-rpio"
 )
 
+type PinMode uint8
+
 const (
 	PinModeInput PinMode = iota
 	PinModeOutput
 )
-
-type PinMode uint8
 
 func (p PinMode) GetRpioMode() rpio.Mode {
 	if p == PinModeInput {

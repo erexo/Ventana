@@ -1,6 +1,7 @@
 package gpio
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -17,6 +18,7 @@ import (
 const (
 	mcpBus          = 1
 	checkInterval   = 100 * time.Millisecond
+	timedPinTime    = 2 * time.Second // todo, move to entities
 	defaultPinState = true
 )
 
@@ -31,7 +33,7 @@ type workerPin interface {
 }
 
 type PinManager struct {
-	pinPairs   map[domain.Pin]domain.Pin
+	pinPairs   map[domain.Pin]*pair
 	openedMpcs map[uint8]*mcp23017.Device
 
 	outputGroup *sync.WaitGroup
@@ -41,7 +43,7 @@ type PinManager struct {
 
 func CreatePinManager() *PinManager {
 	return &PinManager{
-		pinPairs:    make(map[domain.Pin]domain.Pin),
+		pinPairs:    make(map[domain.Pin]*pair),
 		openedMpcs:  make(map[uint8]*mcp23017.Device),
 		outputGroup: &sync.WaitGroup{},
 		isActive:    true,
@@ -49,15 +51,36 @@ func CreatePinManager() *PinManager {
 	}
 }
 
-func (pm *PinManager) AddPinPair(inputPin, outputPin domain.Pin) error {
+type pair struct {
+	outputPin          domain.Pin
+	pairType           enum.PairType
+	timedCancel        context.CancelFunc
+	inputState         bool
+	outputState        bool
+	desiredOutputState bool
+	terminated         bool
+}
+
+func createPair(outputPin domain.Pin, pairType enum.PairType) *pair {
+	return &pair{
+		outputPin:          outputPin,
+		pairType:           pairType,
+		inputState:         defaultPinState,
+		outputState:        defaultPinState,
+		desiredOutputState: defaultPinState,
+		terminated:         false,
+	}
+}
+
+func (pm *PinManager) AddPinPair(inputPin, outputPin domain.Pin, pairType enum.PairType) error {
 	if !pm.isActive {
 		return inactiveErr
 	}
 	for k, v := range pm.pinPairs {
-		if inputPin == k || inputPin == v {
+		if inputPin == k || inputPin == v.outputPin {
 			return errors.New(fmt.Sprintf("Pin %v is already in use", inputPin))
 		}
-		if outputPin == k || outputPin == v {
+		if outputPin == k || outputPin == v.outputPin {
 			return errors.New(fmt.Sprintf("Pin %v is already in use", outputPin))
 		}
 	}
@@ -77,28 +100,16 @@ func (pm *PinManager) AddPinPair(inputPin, outputPin domain.Pin) error {
 		return err
 	}
 
-	go func(group *sync.WaitGroup) {
-		group.Add(1)
-		for true {
-			time.Sleep(checkInterval)
-			if !pm.isActive {
-				if err = wo.WriteState(defaultPinState); err != nil {
-					log.Println("Pin", wo, "inactive write error:", err)
-				}
-				group.Done()
-				break
-			}
-			v, err := wi.ReadState()
-			if err != nil {
-				log.Println("Pin", wi, "read error:", err)
-			}
-			if err = wo.WriteState(v); err != nil {
-				log.Println("Pin", wo, "write error:", err)
-			}
-		}
-	}(pm.outputGroup)
-
-	pm.pinPairs[inputPin] = outputPin
+	p := createPair(outputPin, pairType)
+	switch pairType {
+	case enum.PairTypeToggle:
+		go pm.togglePairWorker(wi, wo, p)
+	case enum.PairTypeTimed:
+		go pm.timedPairWorker(wi, wo, p)
+	default:
+		log.Println("Unknown PairType:", pairType)
+	}
+	pm.pinPairs[inputPin] = p
 	return nil
 }
 
@@ -110,12 +121,44 @@ func (pm *PinManager) RemovePinPair(inputPin, outputPin domain.Pin) error {
 	if !ok {
 		return errors.New(fmt.Sprintf("Pin %v is not registered as input pin", inputPin))
 	}
-	if v != outputPin {
+	if v.outputPin != outputPin {
 		return errors.New(fmt.Sprintf("Pin %v is not an output pin assigned to input pin %v", outputPin, inputPin))
 	}
 
-	// todo, halt gofuncs
+	v.terminated = true
 	delete(pm.pinPairs, inputPin)
+	return nil
+}
+
+func (pm *PinManager) TogglePin(inputPin domain.Pin) error {
+	if !pm.isActive {
+		return inactiveErr
+	}
+	p, ok := pm.pinPairs[inputPin]
+	if !ok {
+		return errors.New(fmt.Sprintf("Pin %v is not registered as input pin", inputPin))
+	}
+	switch p.pairType {
+	case enum.PairTypeToggle:
+		p.desiredOutputState = !p.desiredOutputState
+	case enum.PairTypeTimed:
+		p.desiredOutputState = !defaultPinState
+		go func() {
+			if p.timedCancel != nil {
+				p.timedCancel()
+			}
+			ctx, f := context.WithCancel(context.Background())
+			p.timedCancel = f
+			time.Sleep(timedPinTime)
+			select {
+			case <-ctx.Done():
+			default:
+				p.desiredOutputState = defaultPinState
+			}
+		}()
+	default:
+		log.Println("Unknown PairType:", p.pairType)
+	}
 	return nil
 }
 
@@ -126,7 +169,7 @@ func (pm *PinManager) Close() error {
 
 	var ret error
 	for in, out := range pm.pinPairs {
-		ret = utils.ConcatErrors(ret, pm.RemovePinPair(in, out))
+		ret = utils.ConcatErrors(ret, pm.RemovePinPair(in, out.outputPin))
 	}
 	pm.isActive = false
 
@@ -201,4 +244,73 @@ func (pm *PinManager) createWorkerPin(pin domain.Pin) (workerPin, error) {
 		}, nil
 	}
 	return rpioPin(pin.GetPinIndex()), nil
+}
+
+func (pm *PinManager) togglePairWorker(wi, wo workerPin, p *pair) {
+	pm.outputGroup.Add(1)
+	defer pm.outputGroup.Done()
+	var err error
+	for true {
+		time.Sleep(checkInterval)
+		if !pm.isActive || p.terminated {
+			if err = wo.WriteState(defaultPinState); err != nil {
+				log.Println("Pin", wo, "inactive write error:", err)
+			}
+			break
+		}
+		if p.desiredOutputState == p.outputState {
+			v, err := wi.ReadState()
+			if err != nil {
+				log.Println("Pin", wi, "read error:", err)
+				continue
+			} else if v == p.inputState {
+				continue
+			}
+			p.inputState = v
+			p.desiredOutputState = !p.outputState
+		}
+		if err = wo.WriteState(p.desiredOutputState); err != nil {
+			log.Println("Pin", wo, "write error:", err)
+		} else {
+			p.outputState = p.desiredOutputState
+		}
+	}
+}
+
+func (pm *PinManager) timedPairWorker(wi, wo workerPin, p *pair) {
+	pm.outputGroup.Add(1)
+	defer pm.outputGroup.Done()
+	var err error
+	for true {
+		time.Sleep(checkInterval)
+		if !pm.isActive || p.terminated {
+			if err = wo.WriteState(defaultPinState); err != nil {
+				log.Println("Pin", wo, "inactive write error:", err)
+			}
+			break
+		}
+		if p.desiredOutputState != defaultPinState {
+			if p.outputState == defaultPinState {
+				if err = wo.WriteState(!p.outputState); err != nil {
+					log.Println("Pin", wo, "write error:", err)
+				} else {
+					p.outputState = !p.outputState
+				}
+			}
+		} else {
+			v, err := wi.ReadState()
+			if err != nil {
+				log.Println("Pin", wi, "read error:", err)
+				continue
+			}
+			p.inputState = v
+			if p.inputState != p.outputState {
+				if err = wo.WriteState(p.inputState); err != nil {
+					log.Println("Pin", wo, "write error:", err)
+				} else {
+					p.outputState = p.inputState
+				}
+			}
+		}
+	}
 }
