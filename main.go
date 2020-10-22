@@ -5,32 +5,36 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"runtime"
 	"runtime/debug"
+	"strings"
 
-	"github.com/Erexo/Ventana/api"
-	"github.com/Erexo/Ventana/infrastructure/gpio"
-	"github.com/Erexo/Ventana/infrastructure/sunblind"
+	"github.com/Erexo/Ventana/infrastructure"
+	"github.com/Erexo/Ventana/infrastructure/db"
 )
 
 func main() {
 	fmt.Println("Hello")
+	if runtime.GOOS == "windows" {
+		fmt.Println("This application may not be executed on windows system")
+		os.Exit(1)
+	}
+	if !strings.HasPrefix(runtime.GOARCH, "arm") {
+		fmt.Println("This application may only be executed on arm architecture")
+		os.Exit(1)
+	}
 	defer panic()
 
-	pm := gpio.CreatePinManager()
+	err := db.Initialize()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	c := make(chan os.Signal, 1)
 	signal.Notify(c)
-	go terminate(pm, c)
+	go terminate(c)
 
-	ss := sunblind.CreateService(pm)
-	if err := ss.Load(); err != nil {
-		log.Println("SunblindService error:", err)
-	}
-
-	// todo, add flag to run api
-	if err := api.Run(ss); err != nil {
-		log.Println("Api error:", err)
-	}
+	infrastructure.Run()
 
 	fmt.Fscanln(os.Stdout)
 	fmt.Println("Bye")
@@ -50,12 +54,11 @@ func panic() {
 	}
 }
 
-func terminate(pm *gpio.PinManager, c chan os.Signal) {
+func terminate(c chan os.Signal) {
 	x := <-c
 	log.Println("Terminated", x)
-	err := pm.Close()
-	if err != nil {
-		log.Println("PinManager Close failed:", err)
+	if err := infrastructure.Terminate(); err != nil {
+		log.Println("Close failed:", err)
 	}
 	os.Exit(0)
 }

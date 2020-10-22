@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
+	"github.com/Erexo/Ventana/infrastructure/thermal"
+	"github.com/Erexo/Ventana/infrastructure/user"
 	"github.com/go-chi/chi"
 )
 
@@ -12,10 +14,12 @@ type Controller interface {
 	Route(r chi.Router)
 }
 
-func Run(ss *sunblind.Service) error {
+func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	r := chi.NewRouter()
 
+	registerController(r, user.CreateController(as))
 	registerController(r, sunblind.CreateController(ss))
+	registerController(r, thermal.CreateController(ts))
 
 	// todo port from env/config
 	return http.ListenAndServe(":8081", r)

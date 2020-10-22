@@ -2,6 +2,7 @@ package sunblind
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi"
 )
@@ -21,13 +22,14 @@ func (c *Controller) GetPrefix() string {
 }
 
 func (c *Controller) Route(r chi.Router) {
-	r.Get("/get", c.get)
+	r.Get("/toggle/{id}/{dir}", c.toggle)
 	r.Post("/create", c.create)
 }
 
-func (c *Controller) get(w http.ResponseWriter, r *http.Request) {
-	c.s.ToggleSunblind(0)
-	w.Write([]byte("hello"))
+func (c *Controller) toggle(w http.ResponseWriter, r *http.Request) {
+	id, _ := strconv.Atoi(chi.URLParam(r, "id"))
+	dir := chi.URLParam(r, "dir")
+	c.s.ToggleSunblind(id, dir == "down")
 }
 
 func (c *Controller) create(w http.ResponseWriter, r *http.Request) {

@@ -35,13 +35,16 @@ func (s *Service) GetSunblind(id int) *entity.Sunblind {
 	//
 }
 
-func (s *Service) ToggleSunblind(id int) error {
+func (s *Service) ToggleSunblind(id int, down bool) error {
 	sunblind := s.GetSunblind(id)
 	if sunblind == nil {
 		return utils.NotFoundError(id, "sunblind")
 	}
-	s.pm.TogglePin(sunblind.InputDownPin)
-	s.pm.TogglePin(sunblind.InputUpPin)
+	if down {
+		s.pm.TogglePin(sunblind.InputDownPin)
+	} else {
+		s.pm.TogglePin(sunblind.InputUpPin)
+	}
 	return nil
 }
 
