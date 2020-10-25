@@ -5,12 +5,16 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+
+	"github.com/guregu/null"
 )
 
 const configFile = "config.json"
 
 type Configuration struct {
-	DatabaseFile string `json:"databasefile"`
+	DatabaseFile null.String `json:"databasefile"`
+	JwtToken     string      `json:"jwttoken"`
+	ApiAddr      null.String `json:"apiaddr"`
 }
 
 var instance *Configuration
@@ -40,6 +44,8 @@ func GetConfig() Configuration {
 
 func defaultConfiguration() *Configuration {
 	return &Configuration{
-		DatabaseFile: "ventana.db",
+		DatabaseFile: null.String{},
+		JwtToken:     "secret",
+		ApiAddr:      null.String{},
 	}
 }

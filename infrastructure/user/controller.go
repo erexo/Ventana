@@ -8,6 +8,7 @@ import (
 
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/jwtauth"
 )
 
 type Controller struct {
@@ -25,11 +26,25 @@ func (c *Controller) GetPrefix() string {
 }
 
 func (c *Controller) Route(r chi.Router) {
-	r.Post("/login", c.login)
 	r.Post("/create", c.create)
 	r.Patch("/update/password/{id}", c.updatePassword)
 	r.Patch("/update/role/{id}", c.updateRole)
 	r.Delete("/delete/{id}", c.delete)
+
+	r.Post("/test", c.test)
+}
+
+func (c *Controller) GetUnauthorizedPrefix() string {
+	return "/login"
+}
+
+func (c *Controller) UnauthorizedRoute(r chi.Router) {
+	r.Post("/", c.login)
+}
+
+func (c *Controller) test(w http.ResponseWriter, r *http.Request) {
+	_, claims, _ := jwtauth.FromContext(r.Context())
+	w.Write([]byte(fmt.Sprintf("Role: %v", claims["role"])))
 }
 
 func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
@@ -42,9 +57,14 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
-	if err := c.s.Login(d.Username, d.Password); err != nil {
+	ret, err := c.s.Login(d.Username, d.Password)
+	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
+	retj, _ := json.Marshal(ret)
+	w.WriteHeader(http.StatusOK)
+	w.Write(retj)
 }
 
 func (c *Controller) create(w http.ResponseWriter, r *http.Request) {

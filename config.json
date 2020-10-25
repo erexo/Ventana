@@ -1,3 +1,5 @@
 {
-    "DatabaseFile": "ventana.db"
+    "DatabaseFile": "../v.db",
+    "JwtToken": "4H9HtjtkYuaxuNAhZSy7SLQ8hCvqV79B",
+    "ApiAddr": ":4235"
 }

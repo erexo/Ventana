@@ -9,10 +9,14 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"math"
 	"strings"
+	"time"
 
 	"github.com/Erexo/Ventana/core/entity"
+	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/db"
+	"github.com/dgrijalva/jwt-go"
 	"golang.org/x/crypto/pbkdf2"
 )
 
@@ -36,35 +40,54 @@ func CreateService() *Service {
 	return &Service{}
 }
 
-func (s *Service) Login(username, password string) error {
+type LoginInfo struct {
+	AccessToken string      `json:"accesstoken"`
+	Role        entity.Role `json:"role"`
+}
+
+func (s *Service) Login(username, password string) (LoginInfo, error) {
 	conn, err := db.GetConnection()
 	if err != nil {
-		return err
+		return LoginInfo{}, err
 	}
 	defer conn.Close()
 
 	var dbpassword string
 	var dbsalt *string
-	err = conn.QueryRow("SELECT password, salt FROM user WHERE username LIKE ?", username).Scan(&dbpassword, &dbsalt)
+	var role entity.Role
+	err = conn.QueryRow("SELECT password, salt, role FROM user WHERE username LIKE ?", username).Scan(&dbpassword, &dbsalt, &role)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
-			return ErrInvalidCredentials
+			return LoginInfo{}, ErrInvalidCredentials
 		}
-		return err
+		return LoginInfo{}, err
 	}
 
 	if dbsalt != nil {
 		var err error
 		password, err = getHash(password, *dbsalt)
 		if err != nil {
-			return err
+			return LoginInfo{}, err
 		}
 	}
 	if password != dbpassword {
-		return ErrInvalidCredentials
+		return LoginInfo{}, ErrInvalidCredentials
 	}
-	// todo, jwt
-	return nil
+
+	now := time.Now().Unix()
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+		"exp":  math.MaxInt64,
+		"nbf":  now,
+		"iat":  now,
+		"sub":  username,
+		"role": role,
+	})
+	config := config.GetConfig()
+	t, err := token.SignedString([]byte(config.JwtToken))
+	return LoginInfo{
+		AccessToken: t,
+		Role:        role,
+	}, err
 }
 
 func (s *Service) Create(username, password string, role entity.Role) error {

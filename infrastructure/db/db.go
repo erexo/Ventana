@@ -6,15 +6,15 @@ import (
 	"errors"
 	"log"
 	"os"
+	"path"
 
+	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/georgysavva/scany/sqlscan"
 	_ "modernc.org/sqlite"
 )
 
-const databasePath = "./ventana.db"
-
 func Initialize() error {
-	_, err := os.Stat(databasePath)
+	_, err := os.Stat(getDatabasePath())
 	if err == nil {
 		log.Println("Database is already initialized")
 		return nil
@@ -70,5 +70,14 @@ func Exec(query string, args ...interface{}) (sql.Result, error) {
 }
 
 func GetConnection() (*sql.DB, error) {
-	return sql.Open("sqlite", databasePath)
+	return sql.Open("sqlite", getDatabasePath())
+}
+
+func getDatabasePath() string {
+	cfgDb := config.GetConfig().DatabaseFile
+	if cfgDb.Valid {
+		return cfgDb.String
+	}
+	wd, _ := os.Getwd()
+	return path.Join(wd, "ventana.db")
 }
