@@ -1,0 +1,145 @@
+definitions:
+  user.LoginInfo:
+    properties:
+      accesstoken:
+        type: string
+      role:
+        type: integer
+    type: object
+  user.createDto:
+    properties:
+      password:
+        type: string
+      role:
+        type: integer
+      username:
+        type: string
+    type: object
+  user.loginDto:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    type: object
+  user.updatePasswordDto:
+    properties:
+      password:
+        type: string
+    type: object
+  user.updateRoleDto:
+    properties:
+      role:
+        type: integer
+    type: object
+info:
+  contact: {}
+paths:
+  /:
+    get:
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+  /login:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.loginDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/user.LoginInfo'
+  /user/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.createDto'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /user/delete/{id}:
+    delete:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /user/update/password/{id}:
+    patch:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.updatePasswordDto'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /user/update/role/{id}:
+    patch:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/user.updateRoleDto'
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

@@ -40,6 +40,7 @@ func (c *Controller) GetUnauthorizedPrefix() string {
 
 func (c *Controller) UnauthorizedRoute(r chi.Router) {
 	r.Post("/", c.login)
+	r.Post("/create", c.create)
 }
 
 func (c *Controller) test(w http.ResponseWriter, r *http.Request) {
@@ -47,12 +48,14 @@ func (c *Controller) test(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(fmt.Sprintf("Role: %v", claims["role"])))
 }
 
+// @Router /login [post]
+// @Param body body loginDto true "body"
+// @Success 200 {object} user.LoginInfo
+// @Accept  json
+// @Produce  json
 func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
-	var d struct {
-		Username string `json:"username"`
-		Password string `json:"Password"`
-	}
+	var d loginDto
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -67,13 +70,15 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 	w.Write(retj)
 }
 
+// @Router /user/create [post]
+// @Param body body createDto true "body"
+// @Success 200 {string} plain
+// @Accept  json
+// @Produce  plain
+// @Security ApiKeyAuth
 func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
-	var d struct {
-		Username string      `json:"username"`
-		Password string      `json:"password"`
-		Role     entity.Role `json:"role"`
-	}
+	var d createDto
 
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -84,8 +89,12 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Router /user/update/password/{id} [patch]
+// @Param id path int true "path"
+// @Param body body updatePasswordDto true "body"
+// @Success 200 {string} plain
+// @Security ApiKeyAuth
 func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
-	fmt.Println("begin")
 	w.Header().Set("content-type", "application/json")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 0)
 	if err != nil {
@@ -93,9 +102,7 @@ func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var d struct {
-		Password string `json:"password"`
-	}
+	var d updatePasswordDto
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -105,6 +112,11 @@ func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Router /user/update/role/{id} [patch]
+// @Param id path int true "path"
+// @Param body body updateRoleDto true "body"
+// @Success 200 {string} plain
+// @Security ApiKeyAuth
 func (c *Controller) updateRole(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", "application/json")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 0)
@@ -113,9 +125,7 @@ func (c *Controller) updateRole(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var d struct {
-		Role entity.Role `json:"role"`
-	}
+	var d updateRoleDto
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
@@ -125,6 +135,10 @@ func (c *Controller) updateRole(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Router /user/delete/{id} [delete]
+// @Param id path int true "path"
+// @Success 200 {string} plain
+// @Security ApiKeyAuth
 func (c *Controller) delete(w http.ResponseWriter, r *http.Request) {
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 0)
 	if err != nil {
@@ -134,4 +148,23 @@ func (c *Controller) delete(w http.ResponseWriter, r *http.Request) {
 	if err := c.s.Delete(id); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
+}
+
+type loginDto struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type createDto struct {
+	Username string      `json:"username"`
+	Password string      `json:"password"`
+	Role     entity.Role `json:"role"`
+}
+
+type updatePasswordDto struct {
+	Password string `json:"password"`
+}
+
+type updateRoleDto struct {
+	Role entity.Role `json:"role"`
 }

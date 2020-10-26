@@ -4,12 +4,14 @@ import (
 	"log"
 	"net/http"
 
+	_ "github.com/Erexo/Ventana/docs"
 	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
 	"github.com/Erexo/Ventana/infrastructure/thermal"
 	"github.com/Erexo/Ventana/infrastructure/user"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
+	httpSwagger "github.com/swaggo/http-swagger"
 )
 
 type Controller interface {
@@ -35,6 +37,11 @@ func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	registerController(r, token, sunblind.CreateController(ss))
 	registerController(r, token, thermal.CreateController(ts))
 
+	r.Get("/", home)
+
+	if config.UseSwagger {
+		r.Mount("/swagger", httpSwagger.WrapHandler)
+	}
 	log.Printf("Initializing API '%s'\n", config.ApiAddr.String)
 	return http.ListenAndServe(config.ApiAddr.String, r)
 }
@@ -51,4 +58,10 @@ func registerController(r chi.Router, token *jwtauth.JWTAuth, c Controller) {
 			r.Route(uc.GetUnauthorizedPrefix(), uc.UnauthorizedRoute)
 		})
 	}
+}
+
+// @Success 200 {string} plain
+// @Router / [get]
+func home(w http.ResponseWriter, r *http.Request) {
+	w.Write([]byte("Ventana"))
 }

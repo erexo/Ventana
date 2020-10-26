@@ -15,6 +15,7 @@ type Configuration struct {
 	DatabaseFile null.String `json:"databasefile"`
 	JwtToken     string      `json:"jwttoken"`
 	ApiAddr      null.String `json:"apiaddr"`
+	UseSwagger   bool        `json:"useswagger"`
 }
 
 var instance *Configuration
@@ -47,5 +48,6 @@ func defaultConfiguration() *Configuration {
 		DatabaseFile: null.String{},
 		JwtToken:     "secret",
 		ApiAddr:      null.String{},
+		UseSwagger:   false,
 	}
 }

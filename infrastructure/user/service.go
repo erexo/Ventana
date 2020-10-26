@@ -76,7 +76,7 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 
 	now := time.Now().Unix()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"exp":  math.MaxInt64,
+		"exp":  math.MaxInt32,
 		"nbf":  now,
 		"iat":  now,
 		"sub":  username,
@@ -127,7 +127,7 @@ func (s *Service) UpdateRole(id int64, role entity.Role) error {
 	if err := validateRole(role); err != nil {
 		return err
 	}
-	if _, err := db.Exec("UPDATE user SET role=$1 WHERE id=$2", role, id); err != nil {
+	if _, err := db.Exec("UPDATE user SET role=? WHERE id=?", role, id); err != nil {
 		return err
 	}
 	log.Printf("Updated role of user '%d'\n", id)
@@ -150,7 +150,8 @@ func (s *Service) UpdatePassword(id int64, password string) error {
 			return err
 		}
 	}
-	if _, err := db.Exec("UPDATE user SET password=$1 WHERE id=$2", password, id); err != nil {
+
+	if _, err := db.Exec("UPDATE user SET password=? WHERE id=?", password, id); err != nil {
 		return err
 	}
 	log.Printf("Updated password of user '%d'\n", id)

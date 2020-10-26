@@ -7,20 +7,18 @@ import (
 	"os/signal"
 	"runtime"
 	"runtime/debug"
-	"strings"
 
 	"github.com/Erexo/Ventana/infrastructure"
 	"github.com/Erexo/Ventana/infrastructure/db"
 )
 
+// @securityDefinitions.apikey ApiKeyAuth
+// @in header
+// @name Authorization
 func main() {
 	fmt.Println("Hello")
 	if runtime.GOOS == "windows" {
 		fmt.Println("This application may not be executed on windows system")
-		os.Exit(1)
-	}
-	if !strings.HasPrefix(runtime.GOARCH, "arm") {
-		fmt.Println("This application may only be executed on arm architecture")
 		os.Exit(1)
 	}
 	defer panic()
