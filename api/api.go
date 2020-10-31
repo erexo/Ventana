@@ -10,6 +10,7 @@ import (
 	"github.com/Erexo/Ventana/infrastructure/thermal"
 	"github.com/Erexo/Ventana/infrastructure/user"
 	"github.com/go-chi/chi"
+	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth"
 	httpSwagger "github.com/swaggo/http-swagger"
 )
@@ -31,8 +32,9 @@ func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	}
 
 	r := chi.NewRouter()
-	token := jwtauth.New("HS256", []byte(config.JwtToken), nil)
+	addCors(r)
 
+	token := jwtauth.New("HS256", []byte(config.JwtToken), nil)
 	registerController(r, token, user.CreateController(as))
 	registerController(r, token, sunblind.CreateController(ss))
 	registerController(r, token, thermal.CreateController(ts))
@@ -44,6 +46,16 @@ func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	}
 	log.Printf("Initializing API '%s'\n", config.ApiAddr.String)
 	return http.ListenAndServe(config.ApiAddr.String, r)
+}
+
+func addCors(r *chi.Mux) {
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "PATCH"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "Referer"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 }
 
 func registerController(r chi.Router, token *jwtauth.JWTAuth, c Controller) {
