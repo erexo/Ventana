@@ -28,12 +28,26 @@ func Initialize() error {
 	}
 	defer conn.Close()
 
-	schema := `CREATE TABLE user (
-		id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,		
-		username TEXT UNIQUE NOT NULL,
-		password TEXT NOT NULL,
-		salt TEXT,
-		role INTEGER NOT NULL
+	schema := `
+		CREATE TABLE user (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,	
+			username TEXT UNIQUE NOT NULL,
+			password TEXT NOT NULL,
+			salt TEXT,
+			role INTEGER NOT NULL
+			);
+		CREATE TABLE thermometer (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			name TEXT UNIQUE NOT NULL,
+			sensor TEXT UNIQUE NOT NULL
+			);
+		CREATE TABLE thermaldata (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			thermometerid INTEGER NOT NULL,
+			celsius REAL NOT NULL,
+			timestamp DATETIME NOT NULL,
+			CONSTRAINT fk_thermometer FOREIGN KEY (thermometerid)
+				REFERENCES thermometer(id) ON DELETE CASCADE
 		);`
 	statement, err := conn.Prepare(schema)
 	if err != nil {
@@ -43,6 +57,18 @@ func Initialize() error {
 	if err != nil {
 		return err
 	}
+
+	initialData := `INSERT INTO user (username, password, role) VALUES ('admin', 'admin1', 3);
+		INSERT INTO thermometer (name, sensor) VALUES ('bedroom', '28-011876e3d3ff');`
+	statement, err = conn.Prepare(initialData)
+	if err != nil {
+		return err
+	}
+	_, err = statement.Exec()
+	if err != nil {
+		return err
+	}
+
 	log.Println("Initialized database")
 	return nil
 }
@@ -54,6 +80,15 @@ func Get(dest interface{}, query string, args ...interface{}) error {
 	}
 	defer conn.Close()
 	return sqlscan.Get(context.Background(), conn, dest, query, args...)
+}
+
+func Select(dest interface{}, query string, args ...interface{}) error {
+	conn, err := GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	return sqlscan.Select(context.Background(), conn, dest, query, args...)
 }
 
 func Exec(query string, args ...interface{}) (sql.Result, error) {

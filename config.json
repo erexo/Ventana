@@ -2,5 +2,6 @@
     "DatabaseFile": "../v.db",
     "JwtToken": "4H9HtjtkYuaxuNAhZSy7SLQ8hCvqV79B",
     "ApiAddr": ":4235",
-    "UseSwagger": true
+    "UseSwagger": true,
+    "ThermalUpdateInterval": 2000
 }

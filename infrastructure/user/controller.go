@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Erexo/Ventana/core/dto"
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/jwtauth"
@@ -26,6 +27,7 @@ func (c *Controller) GetPrefix() string {
 }
 
 func (c *Controller) Route(r chi.Router) {
+	r.Post("/browse", c.browse)
 	r.Post("/create", c.create)
 	r.Patch("/update/password/{id}", c.updatePassword)
 	r.Patch("/update/role/{id}", c.updateRole)
@@ -61,6 +63,29 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	ret, err := c.s.Login(d.Username, d.Password)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	retj, _ := json.Marshal(ret)
+	w.WriteHeader(http.StatusOK)
+	w.Write(retj)
+}
+
+// @Router /user/browse [post]
+// @Param body body dto.Filters true "body"
+// @Success 200 {array} dto.User
+// @Accept  json
+// @Produce  json
+// @Security ApiKeyAuth
+func (c *Controller) browse(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("content-type", "application/json")
+	var d dto.Filters
+	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	ret, err := c.s.Browse(d)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

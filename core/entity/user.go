@@ -1,5 +1,7 @@
 package entity
 
+import "database/sql"
+
 type Role int
 
 const (
@@ -10,9 +12,9 @@ const (
 )
 
 type User struct {
-	Id       int64   `db:"id"`
-	Username string  `db:"username"`
-	Password string  `db:"password"`
-	Salt     *string `db:"salt,omitempty"`
-	Role     Role    `db:"role"`
+	Id       int64          `db:"id"`
+	Username string         `db:"username"`
+	Password string         `db:"password"`
+	Salt     sql.NullString `db:"salt,omitempty"`
+	Role     Role           `db:"role"`
 }

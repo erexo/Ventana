@@ -1,4 +1,24 @@
 definitions:
+  dto.Filters:
+    properties:
+      Column:
+        type: string
+      Count:
+        type: integer
+      Descending:
+        type: boolean
+      Offset:
+        type: integer
+    type: object
+  dto.User:
+    properties:
+      id:
+        type: integer
+      role:
+        type: integer
+      username:
+        type: string
+    type: object
   user.LoginInfo:
     properties:
       accesstoken:
@@ -60,6 +80,28 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/user.LoginInfo'
+  /user/browse:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.Filters'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.User'
+            type: array
+      security:
+      - ApiKeyAuth: []
   /user/create:
     post:
       consumes:

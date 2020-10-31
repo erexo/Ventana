@@ -12,10 +12,11 @@ import (
 const configFile = "config.json"
 
 type Configuration struct {
-	DatabaseFile null.String `json:"databasefile"`
-	JwtToken     string      `json:"jwttoken"`
-	ApiAddr      null.String `json:"apiaddr"`
-	UseSwagger   bool        `json:"useswagger"`
+	DatabaseFile          null.String `json:"databasefile"`
+	JwtToken              string      `json:"jwttoken"`
+	ApiAddr               null.String `json:"apiaddr"`
+	UseSwagger            bool        `json:"useswagger"`
+	ThermalUpdateInterval int         `json:"thermalupdateinterval"`
 }
 
 var instance *Configuration

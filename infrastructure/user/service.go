@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Erexo/Ventana/core/dto"
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/db"
@@ -53,7 +54,7 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 	defer conn.Close()
 
 	var dbpassword string
-	var dbsalt *string
+	var dbsalt sql.NullString
 	var role entity.Role
 	err = conn.QueryRow("SELECT password, salt, role FROM user WHERE username LIKE ?", username).Scan(&dbpassword, &dbsalt, &role)
 	if err != nil {
@@ -63,9 +64,9 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 		return LoginInfo{}, err
 	}
 
-	if dbsalt != nil {
+	if dbsalt.Valid {
 		var err error
-		password, err = getHash(password, *dbsalt)
+		password, err = getHash(password, dbsalt.String)
 		if err != nil {
 			return LoginInfo{}, err
 		}
@@ -88,6 +89,19 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 		AccessToken: t,
 		Role:        role,
 	}, err
+}
+
+func (s *Service) Browse(filters dto.Filters) ([]dto.User, error) {
+	var ret []dto.User
+	if err := filters.Validate(dto.User{}); err != nil {
+		return nil, err
+	}
+	query := fmt.Sprintf("SELECT id, username, role FROM user%s", filters.GetQuery())
+
+	fmt.Println(query)
+
+	err := db.Select(&ret, query)
+	return ret, err
 }
 
 func (s *Service) Create(username, password string, role entity.Role) error {
@@ -139,13 +153,13 @@ func (s *Service) UpdatePassword(id int64, password string) error {
 		return err
 	}
 
-	var salt *string
+	var salt sql.NullString
 	if err := db.Get(&salt, "SELECT salt FROM user WHERE id=?", id); err != nil {
 		return err
 	}
-	if salt != nil {
+	if salt.Valid {
 		var err error
-		password, err = getHash(password, *salt)
+		password, err = getHash(password, salt.String)
 		if err != nil {
 			return err
 		}

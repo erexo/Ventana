@@ -65,6 +65,43 @@ var doc = `{
                 }
             }
         },
+        "/user/browse": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/dto.Filters"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.User"
+                            }
+                        }
+                    }
+                }
+            }
+        },
         "/user/create": {
             "post": {
                 "security": [
@@ -197,6 +234,37 @@ var doc = `{
         }
     },
     "definitions": {
+        "dto.Filters": {
+            "type": "object",
+            "properties": {
+                "Column": {
+                    "type": "string"
+                },
+                "Count": {
+                    "type": "integer"
+                },
+                "Descending": {
+                    "type": "boolean"
+                },
+                "Offset": {
+                    "type": "integer"
+                }
+            }
+        },
+        "dto.User": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "role": {
+                    "type": "integer"
+                },
+                "username": {
+                    "type": "string"
+                }
+            }
+        },
         "user.LoginInfo": {
             "type": "object",
             "properties": {
