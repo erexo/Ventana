@@ -73,6 +73,16 @@ func Initialize() error {
 	return nil
 }
 
+func Scan(query string, args interface{}, dest ...interface{}) error {
+	conn, err := GetConnection()
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	conn.QueryRow(query, args).Scan(dest)
+	return nil
+}
+
 func Get(dest interface{}, query string, args ...interface{}) error {
 	conn, err := GetConnection()
 	if err != nil {
@@ -88,7 +98,11 @@ func Select(dest interface{}, query string, args ...interface{}) error {
 		return err
 	}
 	defer conn.Close()
-	return sqlscan.Select(context.Background(), conn, dest, query, args...)
+	err = sqlscan.Select(context.Background(), conn, dest, query, args...)
+	if !errors.Is(err, sql.ErrNoRows) {
+		return err
+	}
+	return nil
 }
 
 func Exec(query string, args ...interface{}) (sql.Result, error) {

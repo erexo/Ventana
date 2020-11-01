@@ -2,6 +2,7 @@ package user
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -64,7 +65,11 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 	}
 	ret, err := c.s.Login(d.Username, d.Password)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		status := http.StatusInternalServerError
+		if errors.Is(err, ErrInvalidCredentials) {
+			status = http.StatusUnauthorized
+		}
+		http.Error(w, err.Error(), status)
 		return
 	}
 	retj, _ := json.Marshal(ret)
@@ -102,7 +107,6 @@ func (c *Controller) browse(w http.ResponseWriter, r *http.Request) {
 // @Produce  plain
 // @Security ApiKeyAuth
 func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
 	var d createDto
 
 	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
@@ -120,7 +124,6 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {string} plain
 // @Security ApiKeyAuth
 func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 0)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
@@ -143,7 +146,6 @@ func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
 // @Success 200 {string} plain
 // @Security ApiKeyAuth
 func (c *Controller) updateRole(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
 	id, err := strconv.ParseInt(chi.URLParam(r, "id"), 10, 0)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

@@ -12,11 +12,12 @@ import (
 const configFile = "config.json"
 
 type Configuration struct {
-	DatabaseFile          null.String `json:"databasefile"`
-	JwtToken              string      `json:"jwttoken"`
-	ApiAddr               null.String `json:"apiaddr"`
-	UseSwagger            bool        `json:"useswagger"`
-	ThermalUpdateInterval int         `json:"thermalupdateinterval"`
+	DatabaseFile              null.String `json:"databasefile"`
+	JwtToken                  string      `json:"jwttoken"`
+	ApiAddr                   null.String `json:"apiaddr"`
+	UseSwagger                bool        `json:"useswagger"`
+	ThermalUpdateInterval     int         `json:"thermalupdateinterval"`
+	GenerateRandomTemperature bool        `json:"GenerateRandomTemperature"`
 }
 
 var instance *Configuration
@@ -46,9 +47,11 @@ func GetConfig() Configuration {
 
 func defaultConfiguration() *Configuration {
 	return &Configuration{
-		DatabaseFile: null.String{},
-		JwtToken:     "secret",
-		ApiAddr:      null.String{},
-		UseSwagger:   false,
+		DatabaseFile:              null.String{},
+		JwtToken:                  "secret",
+		ApiAddr:                   null.String{},
+		UseSwagger:                false,
+		ThermalUpdateInterval:     60000,
+		GenerateRandomTemperature: false,
 	}
 }

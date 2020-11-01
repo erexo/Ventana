@@ -10,6 +10,24 @@ definitions:
       Offset:
         type: integer
     type: object
+  dto.Point:
+    properties:
+      celsius:
+        type: number
+      timestamp:
+        type: integer
+    type: object
+  dto.Thermometer:
+    properties:
+      celsius:
+        type: number
+      id:
+        type: integer
+      name:
+        type: string
+      sensor:
+        type: string
+    type: object
   dto.User:
     properties:
       id:
@@ -19,9 +37,25 @@ definitions:
       username:
         type: string
     type: object
+  thermal.dataDto:
+    properties:
+      from:
+        type: integer
+      thermometerid:
+        type: integer
+      to:
+        type: integer
+    type: object
+  thermal.saveDto:
+    properties:
+      name:
+        type: string
+      sensor:
+        type: string
+    type: object
   user.LoginInfo:
     properties:
-      accesstoken:
+      accessToken:
         type: string
       role:
         type: integer
@@ -80,6 +114,110 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/user.LoginInfo'
+  /thermal/browse:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/dto.Filters'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Thermometer'
+            type: array
+      security:
+      - ApiKeyAuth: []
+  /thermal/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/thermal.saveDto'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /thermal/data:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/thermal.dataDto'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Point'
+            type: array
+      security:
+      - ApiKeyAuth: []
+  /thermal/delete/{id}:
+    delete:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /thermal/update/{id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/thermal.saveDto'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
   /user/browse:
     post:
       consumes:

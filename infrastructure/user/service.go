@@ -22,7 +22,6 @@ import (
 )
 
 const (
-	minUsernameLength = 4
 	minPasswordLength = 6
 
 	saltSize   = 24
@@ -42,7 +41,7 @@ func CreateService() *Service {
 }
 
 type LoginInfo struct {
-	AccessToken string      `json:"accesstoken"`
+	AccessToken string      `json:"accessToken"`
 	Role        entity.Role `json:"role"`
 }
 
@@ -53,25 +52,27 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 	}
 	defer conn.Close()
 
-	var dbpassword string
-	var dbsalt sql.NullString
-	var role entity.Role
-	err = conn.QueryRow("SELECT password, salt, role FROM user WHERE username LIKE ?", username).Scan(&dbpassword, &dbsalt, &role)
-	if err != nil {
+	var data struct {
+		Id       int64          `db:"id"`
+		Password string         `db:"password"`
+		Salt     sql.NullString `db:"salt"`
+		Role     entity.Role    `db:"role"`
+	}
+	if err := db.Get(&data, "SELECT id, password, salt, role FROM user WHERE username LIKE ?", username); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return LoginInfo{}, ErrInvalidCredentials
 		}
 		return LoginInfo{}, err
 	}
 
-	if dbsalt.Valid {
+	if data.Salt.Valid {
 		var err error
-		password, err = getHash(password, dbsalt.String)
+		password, err = getHash(password, data.Salt.String)
 		if err != nil {
 			return LoginInfo{}, err
 		}
 	}
-	if password != dbpassword {
+	if password != data.Password {
 		return LoginInfo{}, ErrInvalidCredentials
 	}
 
@@ -81,13 +82,15 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 		"nbf":  now,
 		"iat":  now,
 		"sub":  username,
-		"role": role,
+		"uid":  data.Id,
+		"pwd":  data.Password,
+		"role": data.Role,
 	})
 	config := config.GetConfig()
 	t, err := token.SignedString([]byte(config.JwtToken))
 	return LoginInfo{
 		AccessToken: t,
-		Role:        role,
+		Role:        data.Role,
 	}, err
 }
 
@@ -98,15 +101,13 @@ func (s *Service) Browse(filters dto.Filters) ([]dto.User, error) {
 	}
 	query := fmt.Sprintf("SELECT id, username, role FROM user%s", filters.GetQuery())
 
-	fmt.Println(query)
-
 	err := db.Select(&ret, query)
 	return ret, err
 }
 
 func (s *Service) Create(username, password string, role entity.Role) error {
-	if err := validateUsername(&username); err != nil {
-		return err
+	if err := entity.ValidateName(&username); err != nil {
+		return fmt.Errorf("Username: %w", err)
 	}
 	if err := validatePassword(&password); err != nil {
 		return err
@@ -130,9 +131,6 @@ func (s *Service) Create(username, password string, role entity.Role) error {
 	}
 	id, _ := r.LastInsertId()
 
-	// var users []entity.User
-	// sqlscan.Select(context.Background(), conn, &users, "SELECT id, username, password, salt, role FROM user")
-	// fmt.Println(users)
 	log.Printf("Created user '%d' with Username %s", id, username)
 	return nil
 }
@@ -154,7 +152,7 @@ func (s *Service) UpdatePassword(id int64, password string) error {
 	}
 
 	var salt sql.NullString
-	if err := db.Get(&salt, "SELECT salt FROM user WHERE id=?", id); err != nil {
+	if err := db.Scan("SELECT salt FROM user WHERE id=?", []interface{}{id}, salt); err != nil {
 		return err
 	}
 	if salt.Valid {
@@ -185,13 +183,15 @@ func (s *Service) Delete(id int64) error {
 	return nil
 }
 
-func validateUsername(username *string) error {
-	u := strings.TrimSpace(strings.ToLower(*username))
-	if len(u) < minUsernameLength {
-		return errors.New("Invalid username length")
+func (s *Service) Verify(id int64, hash string, role entity.Role) bool {
+	var data struct {
+		Hash string      `db:"password"`
+		Role entity.Role `db:"role"`
 	}
-	*username = u
-	return nil
+	if err := db.Get(&data, "SELECT password, role FROM user WHERE id=?", id); err != nil {
+		return false
+	}
+	return data.Hash == hash && data.Role == role
 }
 
 func validatePassword(password *string) error {

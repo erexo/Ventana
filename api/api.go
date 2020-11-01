@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/Erexo/Ventana/core/entity"
 	_ "github.com/Erexo/Ventana/docs"
 	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
@@ -25,7 +26,7 @@ type UnauthorizedController interface {
 	UnauthorizedRoute(r chi.Router)
 }
 
-func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
+func Run(us *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	config := config.GetConfig()
 	if !config.ApiAddr.Valid {
 		return nil
@@ -35,9 +36,9 @@ func Run(as *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 	addCors(r)
 
 	token := jwtauth.New("HS256", []byte(config.JwtToken), nil)
-	registerController(r, token, user.CreateController(as))
-	registerController(r, token, sunblind.CreateController(ss))
-	registerController(r, token, thermal.CreateController(ts))
+	registerController(r, us, token, user.CreateController(us))
+	registerController(r, us, token, sunblind.CreateController(ss))
+	registerController(r, us, token, thermal.CreateController(ts))
 
 	r.Get("/", home)
 
@@ -58,16 +59,55 @@ func addCors(r *chi.Mux) {
 	}))
 }
 
-func registerController(r chi.Router, token *jwtauth.JWTAuth, c Controller) {
+func registerController(r chi.Router, us *user.Service, token *jwtauth.JWTAuth, c Controller) {
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(token))
-		r.Use(jwtauth.Authenticator)
+		r.Use(authenticate(us))
 		r.Route(c.GetPrefix(), c.Route)
 	})
 
 	if uc, ok := c.(UnauthorizedController); ok {
 		r.Group(func(r chi.Router) {
 			r.Route(uc.GetUnauthorizedPrefix(), uc.UnauthorizedRoute)
+		})
+	}
+}
+
+func authenticate(us *user.Service) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		ferr := func(w http.ResponseWriter) {
+			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
+		}
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, claims, err := jwtauth.FromContext(r.Context())
+			if err != nil {
+				ferr(w)
+				return
+			}
+			if token == nil || !token.Valid {
+				ferr(w)
+				return
+			}
+			id, ok := claims["uid"].(float64)
+			if !ok {
+				ferr(w)
+				return
+			}
+			hash, ok := claims["pwd"].(string)
+			if !ok {
+				ferr(w)
+				return
+			}
+			role, ok := claims["role"].(float64)
+			if !ok {
+				ferr(w)
+				return
+			}
+			if !us.Verify(int64(id), hash, entity.Role(role)) {
+				ferr(w)
+				return
+			}
+			next.ServeHTTP(w, r)
 		})
 	}
 }
