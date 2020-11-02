@@ -14,6 +14,7 @@ import (
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/db"
+	"github.com/georgysavva/scany/sqlscan"
 	"github.com/yryz/ds18b20"
 )
 
@@ -32,20 +33,87 @@ func CreateService() *Service {
 
 func (s *Service) GetData(id int64, from, to entity.UnixTime) ([]dto.Point, error) {
 	var ret []dto.Point
-	fmt.Println(id, from, to)
 	err := db.Select(&ret, "SELECT celsius, timestamp FROM thermaldata WHERE thermometerid=? AND timestamp>=? AND timestamp<=?", id, from, to)
 	return ret, err
 }
 
-func (s *Service) Browse(filters dto.Filters) ([]*dto.Thermometer, error) {
-	var ret []*dto.Thermometer
-	if err := filters.Validate(dto.Thermometer{}); err != nil {
-		return nil, err
+func (s *Service) SaveOrder(userId int64, order []int64) error {
+	tx, close, err := db.GetTransaction()
+	if err != nil {
+		return err
 	}
-	query := fmt.Sprintf("SELECT id, name, sensor FROM thermometer%s", filters.GetQuery())
-	err := db.Select(&ret, query)
+	defer close()
+
+	var currentOrder []struct {
+		OrderId       int64 `db:"id"`
+		ThermometerId int64 `db:"thermometerid"`
+	}
+
+	if err := sqlscan.Select(db.Ctx(), tx, &currentOrder, "SELECT id, thermometerid FROM thermometerorder WHERE userid=? ORDER BY id ASC", userId); db.IsError(err) {
+		return err
+	}
+
+	lastId := int64(0)
+	for i, thermometerId := range order {
+		if i < len(currentOrder) {
+			c := currentOrder[i]
+			if thermometerId != c.ThermometerId {
+				if _, err := tx.Exec("UPDATE thermometerorder SET thermometerid=? WHERE id=?", thermometerId, c.OrderId); err != nil {
+					return err
+				}
+			}
+			lastId = c.OrderId
+			continue
+		}
+		if _, err := tx.Exec("INSERT INTO thermometerorder (userid, thermometerid) VALUES (?, ?)", userId, thermometerId); err != nil {
+			return err
+		}
+	}
+	if len(order) < len(currentOrder) {
+		tx.Exec("DELETE FROM thermometerorder WHERE userid=? AND id>?", userId, lastId)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+
+	log.Printf("Updated order for User '%d': %v", userId, order)
+	return nil
+}
+
+func (s *Service) Browse(userId int64) ([]*dto.Thermometer, error) {
+	var thermos []*dto.Thermometer
+	query := fmt.Sprintf("SELECT id, name, sensor FROM thermometer ORDER BY id ASC")
+	err := db.Select(&thermos, query)
 	if err != nil {
 		return nil, err
+	}
+	var order []int64
+	if err := db.Select(&order, "SELECT thermometerid FROM thermometerorder WHERE userid=? ORDER BY id ASC", userId); err != nil {
+		return nil, err
+	}
+	var ret []*dto.Thermometer
+	if len(order) == 0 {
+		ret = thermos
+	} else {
+		ret = make([]*dto.Thermometer, len(thermos))
+		i := 0
+		for _, id := range order {
+			for j, thermo := range thermos {
+				if thermo != nil && thermo.Id == id {
+					ret[i] = thermo
+					i++
+					thermos[j] = nil
+					break
+				}
+			}
+		}
+		for _, thermo := range thermos {
+			if thermo != nil {
+				ret[i] = thermo
+				i++
+			}
+		}
 	}
 
 	s.thermometersMux.Lock()

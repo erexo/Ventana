@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"path"
@@ -35,19 +36,22 @@ func Initialize() error {
 			password TEXT NOT NULL,
 			salt TEXT,
 			role INTEGER NOT NULL
-			);
+		);
 		CREATE TABLE thermometer (
 			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 			name TEXT UNIQUE NOT NULL,
 			sensor TEXT UNIQUE NOT NULL
-			);
+		);
+		CREATE TABLE thermometerorder (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			userid INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+			thermometerid INTEGER NOT NULL REFERENCES thermometer(id) ON DELETE CASCADE
+		);
 		CREATE TABLE thermaldata (
 			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-			thermometerid INTEGER NOT NULL,
+			thermometerid INTEGER NOT NULL REFERENCES thermometer(id) ON DELETE CASCADE,
 			celsius REAL NOT NULL,
-			timestamp DATETIME NOT NULL,
-			CONSTRAINT fk_thermometer FOREIGN KEY (thermometerid)
-				REFERENCES thermometer(id) ON DELETE CASCADE
+			timestamp DATETIME NOT NULL
 		);`
 	statement, err := conn.Prepare(schema)
 	if err != nil {
@@ -73,6 +77,50 @@ func Initialize() error {
 	return nil
 }
 
+func GetConnection() (*sql.DB, error) {
+	conn, err := sql.Open("sqlite", getDatabasePath())
+	if err != nil {
+		return nil, err
+	}
+	_, err = conn.Exec("PRAGMA foreign_keys = ON")
+	if err != nil {
+		conn.Close()
+		return nil, err
+	}
+	return conn, nil
+}
+
+func GetTransaction() (*sql.Tx, func() error, error) {
+	conn, err := GetConnection()
+	if err != nil {
+		return nil, nil, err
+	}
+	tx, err := conn.Begin()
+	if err != nil {
+		return nil, nil, err
+	}
+	return tx, func() error {
+		terr := tx.Rollback()
+		if terr != nil && errors.Is(terr, sql.ErrTxDone) {
+			terr = nil
+		}
+		cerr := conn.Close()
+		var err error
+		if terr == nil {
+			err = cerr
+		} else if cerr == nil {
+			err = terr
+		} else {
+			err = fmt.Errorf("tx: %s, conn: %w", terr.Error(), cerr)
+		}
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		return nil
+	}, nil
+}
+
 func Scan(query string, args interface{}, dest ...interface{}) error {
 	conn, err := GetConnection()
 	if err != nil {
@@ -89,7 +137,7 @@ func Get(dest interface{}, query string, args ...interface{}) error {
 		return err
 	}
 	defer conn.Close()
-	return sqlscan.Get(context.Background(), conn, dest, query, args...)
+	return sqlscan.Get(Ctx(), conn, dest, query, args...)
 }
 
 func Select(dest interface{}, query string, args ...interface{}) error {
@@ -98,8 +146,8 @@ func Select(dest interface{}, query string, args ...interface{}) error {
 		return err
 	}
 	defer conn.Close()
-	err = sqlscan.Select(context.Background(), conn, dest, query, args...)
-	if !errors.Is(err, sql.ErrNoRows) {
+	err = sqlscan.Select(Ctx(), conn, dest, query, args...)
+	if IsError(err) {
 		return err
 	}
 	return nil
@@ -110,6 +158,8 @@ func Exec(query string, args ...interface{}) (sql.Result, error) {
 	if err != nil {
 		return nil, err
 	}
+	x, _ := conn.Begin()
+	x.Commit()
 	defer conn.Close()
 	st, err := conn.Prepare(query)
 	if err != nil {
@@ -118,8 +168,12 @@ func Exec(query string, args ...interface{}) (sql.Result, error) {
 	return st.Exec(args...)
 }
 
-func GetConnection() (*sql.DB, error) {
-	return sql.Open("sqlite", getDatabasePath())
+func IsError(err error) bool {
+	return err != nil && !errors.Is(err, sql.ErrNoRows)
+}
+
+func Ctx() context.Context {
+	return context.Background()
 }
 
 func getDatabasePath() string {

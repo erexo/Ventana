@@ -118,13 +118,6 @@ paths:
     post:
       consumes:
       - application/json
-      parameters:
-      - description: body
-        in: body
-        name: body
-        required: true
-        schema:
-          $ref: '#/definitions/dto.Filters'
       produces:
       - application/json
       responses:
@@ -186,6 +179,28 @@ paths:
         name: id
         required: true
         type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /thermal/order:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
       responses:
         "200":
           description: OK

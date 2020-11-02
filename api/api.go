@@ -4,7 +4,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/Erexo/Ventana/core/entity"
+	"github.com/Erexo/Ventana/api/controller"
 	_ "github.com/Erexo/Ventana/docs"
 	"github.com/Erexo/Ventana/infrastructure/config"
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
@@ -75,36 +75,14 @@ func registerController(r chi.Router, us *user.Service, token *jwtauth.JWTAuth, 
 
 func authenticate(us *user.Service) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
-		ferr := func(w http.ResponseWriter) {
-			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
-		}
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, claims, err := jwtauth.FromContext(r.Context())
-			if err != nil {
-				ferr(w)
-				return
-			}
-			if token == nil || !token.Valid {
-				ferr(w)
-				return
-			}
-			id, ok := claims["uid"].(float64)
+			claims, ok := controller.ReadClaims(w, r)
 			if !ok {
-				ferr(w)
+				// unauthorization is performed inside ReadClaims
 				return
 			}
-			hash, ok := claims["pwd"].(string)
-			if !ok {
-				ferr(w)
-				return
-			}
-			role, ok := claims["role"].(float64)
-			if !ok {
-				ferr(w)
-				return
-			}
-			if !us.Verify(int64(id), hash, entity.Role(role)) {
-				ferr(w)
+			if !us.Verify(claims.UserId, claims.Hash, claims.Role) {
+				controller.Unauthorize(w)
 				return
 			}
 			next.ServeHTTP(w, r)

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/Erexo/Ventana/core/dto"
+	"github.com/Erexo/Ventana/api/controller"
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/go-chi/chi"
 )
@@ -25,6 +25,7 @@ func (c *Controller) GetPrefix() string {
 }
 
 func (c *Controller) Route(r chi.Router) {
+	r.Post("/order", c.order)
 	r.Post("/browse", c.browse)
 	r.Post("/data", c.data)
 	r.Post("/create", c.create)
@@ -32,20 +33,43 @@ func (c *Controller) Route(r chi.Router) {
 	r.Delete("/delete/{id}", c.delete)
 }
 
+// @Router /thermal/order [post]
+// @Param body body []int64 true "body"
+// @Success 200 {string} plain
+// @Accept  json
+// @Produce  json
+// @Security ApiKeyAuth
+func (c *Controller) order(w http.ResponseWriter, r *http.Request) {
+	claims, ok := controller.ReadClaims(w, r)
+	if !ok {
+		return
+	}
+
+	var d []int64
+	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	err := c.s.SaveOrder(claims.UserId, d)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+	}
+}
+
 // @Router /thermal/browse [post]
-// @Param body body dto.Filters true "body"
 // @Success 200 {array} dto.Thermometer
 // @Accept  json
 // @Produce  json
 // @Security ApiKeyAuth
 func (c *Controller) browse(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("content-type", "application/json")
-	var d dto.Filters
-	if err := json.NewDecoder(r.Body).Decode(&d); err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+	claims, ok := controller.ReadClaims(w, r)
+	if !ok {
 		return
 	}
-	ret, err := c.s.Browse(d)
+
+	w.Header().Set("content-type", "application/json")
+	ret, err := c.s.Browse(claims.UserId)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return

@@ -3,14 +3,12 @@ package user
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"strconv"
 
 	"github.com/Erexo/Ventana/core/dto"
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/go-chi/chi"
-	"github.com/go-chi/jwtauth"
 )
 
 type Controller struct {
@@ -33,8 +31,6 @@ func (c *Controller) Route(r chi.Router) {
 	r.Patch("/update/password/{id}", c.updatePassword)
 	r.Patch("/update/role/{id}", c.updateRole)
 	r.Delete("/delete/{id}", c.delete)
-
-	r.Post("/test", c.test)
 }
 
 func (c *Controller) GetUnauthorizedPrefix() string {
@@ -44,11 +40,6 @@ func (c *Controller) GetUnauthorizedPrefix() string {
 func (c *Controller) UnauthorizedRoute(r chi.Router) {
 	r.Post("/", c.login)
 	r.Post("/create", c.create)
-}
-
-func (c *Controller) test(w http.ResponseWriter, r *http.Request) {
-	_, claims, _ := jwtauth.FromContext(r.Context())
-	w.Write([]byte(fmt.Sprintf("Role: %v", claims["role"])))
 }
 
 // @Router /login [post]
