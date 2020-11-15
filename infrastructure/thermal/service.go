@@ -77,7 +77,7 @@ func (s *Service) SaveOrder(userId int64, order []int64) error {
 		return err
 	}
 
-	log.Printf("Updated order for User '%d': %v", userId, order)
+	log.Printf("Updated Thermometer order for User '%d': %v\n", userId, order)
 	return nil
 }
 
@@ -142,7 +142,7 @@ func (s *Service) Create(name, sensor string) error {
 	}
 	id, _ := r.LastInsertId()
 
-	log.Printf("Created thermometer '%d' with Name %s", id, name)
+	log.Printf("Created thermometer '%d' with Name %s\n", id, name)
 	return nil
 }
 
@@ -169,7 +169,7 @@ func (s *Service) Delete(id int64) error {
 	if rows < 1 {
 		return fmt.Errorf("Thermometer '%d' does not exist", id)
 	}
-	log.Printf("Deleted thermometer '%d'", id)
+	log.Printf("Deleted thermometer '%d'\n", id)
 	return nil
 }
 

@@ -11,24 +11,26 @@ import (
 )
 
 var (
-	pm *gpio.PinManager
-
+	gs *gpio.Service
 	us *user.Service
 	ss *sunblind.Service
 	ts *thermal.Service
 )
 
 func Run() {
-	pm = gpio.CreatePinManager()
-
+	gs = gpio.CreateService()
 	us = user.CreateService()
-	ss = sunblind.CreateService(pm)
+	ss = sunblind.CreateService(gs)
 	if err := ss.Load(); err != nil {
 		log.Println("SunblindService error:", err)
+	} else {
+		log.Println("Loaded sunblind service")
 	}
 	ts = thermal.CreateService()
 	if err := ts.Load(); err != nil {
 		log.Println("ThermalService error:", err)
+	} else {
+		log.Println("Loaded thermal service")
 	}
 
 	// todo, add flag to run api
@@ -38,8 +40,8 @@ func Run() {
 }
 
 func Terminate() error {
-	if pm == nil {
+	if gs == nil {
 		return nil
 	}
-	return pm.Close()
+	return gs.Close()
 }

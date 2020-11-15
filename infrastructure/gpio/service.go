@@ -32,17 +32,18 @@ type workerPin interface {
 	fmt.Stringer
 }
 
-type PinManager struct {
+type Service struct {
 	pinPairs   map[domain.Pin]*pair
 	openedMpcs map[uint8]*mcp23017.Device
+	pinMux     sync.Mutex
 
 	outputGroup *sync.WaitGroup
 	isActive    bool
 	gpioOpened  bool
 }
 
-func CreatePinManager() *PinManager {
-	return &PinManager{
+func CreateService() *Service {
+	return &Service{
 		pinPairs:    make(map[domain.Pin]*pair),
 		openedMpcs:  make(map[uint8]*mcp23017.Device),
 		outputGroup: &sync.WaitGroup{},
@@ -61,41 +62,40 @@ type pair struct {
 	terminated         bool
 }
 
-func createPair(outputPin domain.Pin, pairType enum.PairType) *pair {
-	return &pair{
-		outputPin:          outputPin,
-		pairType:           pairType,
-		inputState:         defaultPinState,
-		outputState:        defaultPinState,
-		desiredOutputState: defaultPinState,
-		terminated:         false,
+func (s *Service) IsPinRegistered(pins ...domain.Pin) error {
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
+	for k, v := range s.pinPairs {
+		for _, p := range pins {
+			if p == k || p == v.outputPin {
+				return fmt.Errorf("Pin %v is already in use", p)
+			}
+		}
 	}
+	return nil
 }
 
-func (pm *PinManager) AddPinPair(inputPin, outputPin domain.Pin, pairType enum.PairType) error {
-	if !pm.isActive {
+func (s *Service) RegisterPinPair(inputPin, outputPin domain.Pin, pairType enum.PairType) error {
+	if !s.isActive {
 		return inactiveErr
 	}
-	for k, v := range pm.pinPairs {
-		if inputPin == k || inputPin == v.outputPin {
-			return errors.New(fmt.Sprintf("Pin %v is already in use", inputPin))
-		}
-		if outputPin == k || outputPin == v.outputPin {
-			return errors.New(fmt.Sprintf("Pin %v is already in use", outputPin))
-		}
+	if err := s.IsPinRegistered(inputPin, outputPin); err != nil {
+		return err
 	}
 
-	err := pm.registerPin(inputPin, enum.PinModeInput)
-	err = utils.ConcatErrors(err, pm.registerPin(outputPin, enum.PinModeOutput))
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
+	err := s.registerPin(inputPin, enum.PinModeInput)
+	err = utils.ConcatErrors(err, s.registerPin(outputPin, enum.PinModeOutput))
 	if err != nil {
 		return err
 	}
 
-	wi, err := pm.createWorkerPin(inputPin)
+	wi, err := s.createWorkerPin(inputPin)
 	if err != nil {
 		return err
 	}
-	wo, err := pm.createWorkerPin(outputPin)
+	wo, err := s.createWorkerPin(outputPin)
 	if err != nil {
 		return err
 	}
@@ -103,38 +103,32 @@ func (pm *PinManager) AddPinPair(inputPin, outputPin domain.Pin, pairType enum.P
 	p := createPair(outputPin, pairType)
 	switch pairType {
 	case enum.PairTypeToggle:
-		go pm.togglePairWorker(wi, wo, p)
+		go s.togglePairWorker(wi, wo, p)
 	case enum.PairTypeTimed:
-		go pm.timedPairWorker(wi, wo, p)
+		go s.timedPairWorker(wi, wo, p)
 	default:
 		log.Println("Unknown PairType:", pairType)
 	}
-	pm.pinPairs[inputPin] = p
+	s.pinPairs[inputPin] = p
 	return nil
 }
 
-func (pm *PinManager) RemovePinPair(inputPin, outputPin domain.Pin) error {
-	if !pm.isActive {
+func (s *Service) UnregisterPinPair(inputPin, outputPin domain.Pin) error {
+	if !s.isActive {
 		return inactiveErr
 	}
-	v, ok := pm.pinPairs[inputPin]
-	if !ok {
-		return errors.New(fmt.Sprintf("Pin %v is not registered as input pin", inputPin))
-	}
-	if v.outputPin != outputPin {
-		return errors.New(fmt.Sprintf("Pin %v is not an output pin assigned to input pin %v", outputPin, inputPin))
-	}
-
-	v.terminated = true
-	delete(pm.pinPairs, inputPin)
-	return nil
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
+	return s.internalUnregisterPinPair(inputPin, outputPin)
 }
 
-func (pm *PinManager) TogglePin(inputPin domain.Pin) error {
-	if !pm.isActive {
+func (s *Service) TogglePin(inputPin domain.Pin) error {
+	if !s.isActive {
 		return inactiveErr
 	}
-	p, ok := pm.pinPairs[inputPin]
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
+	p, ok := s.pinPairs[inputPin]
 	if !ok {
 		return errors.New(fmt.Sprintf("Pin %v is not registered as input pin", inputPin))
 	}
@@ -162,45 +156,47 @@ func (pm *PinManager) TogglePin(inputPin domain.Pin) error {
 	return nil
 }
 
-func (pm *PinManager) Close() error {
-	if !pm.isActive {
+func (s *Service) Close() error {
+	if !s.isActive {
 		return inactiveErr
 	}
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
 
 	var ret error
-	for in, out := range pm.pinPairs {
-		ret = utils.ConcatErrors(ret, pm.RemovePinPair(in, out.outputPin))
+	for in, out := range s.pinPairs {
+		ret = utils.ConcatErrors(ret, s.internalUnregisterPinPair(in, out.outputPin))
 	}
-	pm.isActive = false
+	s.isActive = false
 
-	pm.outputGroup.Wait()
-	if pm.gpioOpened {
+	s.outputGroup.Wait()
+	if s.gpioOpened {
 		ret = utils.ConcatErrors(ret, rpio.Close())
-		pm.gpioOpened = false
+		s.gpioOpened = false
 	}
 
-	for _, mpc := range pm.openedMpcs {
+	for _, mpc := range s.openedMpcs {
 		if err := mpc.Close(); err != nil {
 			utils.ConcatErrors(ret, err)
 		}
 	}
-	pm.openedMpcs = make(map[uint8]*mcp23017.Device)
+	s.openedMpcs = make(map[uint8]*mcp23017.Device)
 	return ret
 }
 
-func (pm *PinManager) registerPin(pin domain.Pin, mode enum.PinMode) error {
+func (s *Service) registerPin(pin domain.Pin, mode enum.PinMode) error {
 	if pin.IsMcpPin() {
 		mcpNum, err := pin.GetMcpNum()
 		if err != nil {
 			return err
 		}
-		mcp, ok := pm.openedMpcs[mcpNum]
+		mcp, ok := s.openedMpcs[mcpNum]
 		if !ok {
 			mcp, err = mcp23017.Open(mcpBus, mcpNum)
 			if err != nil {
 				return err
 			}
-			pm.openedMpcs[mcpNum] = mcp
+			s.openedMpcs[mcpNum] = mcp
 		}
 		index := pin.GetPinIndex()
 		err = mcp.PinMode(index, mode.GetMcpMode())
@@ -214,11 +210,11 @@ func (pm *PinManager) registerPin(pin domain.Pin, mode enum.PinMode) error {
 			}
 		}
 	} else {
-		if !pm.gpioOpened {
+		if !s.gpioOpened {
 			if err := rpio.Open(); err != nil {
 				return err
 			}
-			pm.gpioOpened = true
+			s.gpioOpened = true
 		}
 		rp := rpio.Pin(pin.GetPinIndex())
 		rpio.PinMode(rp, mode.GetRpioMode())
@@ -226,13 +222,27 @@ func (pm *PinManager) registerPin(pin domain.Pin, mode enum.PinMode) error {
 	return nil
 }
 
-func (pm *PinManager) createWorkerPin(pin domain.Pin) (workerPin, error) {
+func (s *Service) internalUnregisterPinPair(inputPin, outputPin domain.Pin) error {
+	v, ok := s.pinPairs[inputPin]
+	if !ok {
+		return errors.New(fmt.Sprintf("Pin %v is not registered as input pin", inputPin))
+	}
+	if v.outputPin != outputPin {
+		return errors.New(fmt.Sprintf("Pin %v is not an output pin assigned to input pin %v", outputPin, inputPin))
+	}
+
+	v.terminated = true
+	delete(s.pinPairs, inputPin)
+	return nil
+}
+
+func (s *Service) createWorkerPin(pin domain.Pin) (workerPin, error) {
 	if pin.IsMcpPin() {
 		mcpNum, err := pin.GetMcpNum()
 		if err != nil {
 			return nil, err
 		}
-		mcp, ok := pm.openedMpcs[mcpNum]
+		mcp, ok := s.openedMpcs[mcpNum]
 		if !ok {
 			return nil, errors.New(fmt.Sprintf("Mcp %v is not opened", mcpNum))
 		}
@@ -246,13 +256,13 @@ func (pm *PinManager) createWorkerPin(pin domain.Pin) (workerPin, error) {
 	return rpioPin(pin.GetPinIndex()), nil
 }
 
-func (pm *PinManager) togglePairWorker(wi, wo workerPin, p *pair) {
-	pm.outputGroup.Add(1)
-	defer pm.outputGroup.Done()
+func (s *Service) togglePairWorker(wi, wo workerPin, p *pair) {
+	s.outputGroup.Add(1)
+	defer s.outputGroup.Done()
 	var err error
 	for true {
 		time.Sleep(checkInterval)
-		if !pm.isActive || p.terminated {
+		if !s.isActive || p.terminated {
 			if err = wo.WriteState(defaultPinState); err != nil {
 				log.Println("Pin", wo, "inactive write error:", err)
 			}
@@ -277,13 +287,13 @@ func (pm *PinManager) togglePairWorker(wi, wo workerPin, p *pair) {
 	}
 }
 
-func (pm *PinManager) timedPairWorker(wi, wo workerPin, p *pair) {
-	pm.outputGroup.Add(1)
-	defer pm.outputGroup.Done()
+func (s *Service) timedPairWorker(wi, wo workerPin, p *pair) {
+	s.outputGroup.Add(1)
+	defer s.outputGroup.Done()
 	var err error
 	for true {
 		time.Sleep(checkInterval)
-		if !pm.isActive || p.terminated {
+		if !s.isActive || p.terminated {
 			if err = wo.WriteState(defaultPinState); err != nil {
 				log.Println("Pin", wo, "inactive write error:", err)
 			}
@@ -312,5 +322,16 @@ func (pm *PinManager) timedPairWorker(wi, wo workerPin, p *pair) {
 				}
 			}
 		}
+	}
+}
+
+func createPair(outputPin domain.Pin, pairType enum.PairType) *pair {
+	return &pair{
+		outputPin:          outputPin,
+		pairType:           pairType,
+		inputState:         defaultPinState,
+		outputState:        defaultPinState,
+		desiredOutputState: defaultPinState,
+		terminated:         false,
 	}
 }

@@ -3,14 +3,14 @@ package controller
 import (
 	"net/http"
 
-	"github.com/Erexo/Ventana/core/entity"
+	"github.com/Erexo/Ventana/core/domain"
 	"github.com/go-chi/jwtauth"
 )
 
 type Claims struct {
 	UserId int64
 	Hash   string
-	Role   entity.Role
+	Role   domain.Role
 }
 
 func ReadClaims(w http.ResponseWriter, r *http.Request) (Claims, bool) {
@@ -42,7 +42,7 @@ func ReadClaims(w http.ResponseWriter, r *http.Request) (Claims, bool) {
 	return Claims{
 		UserId: int64(id),
 		Hash:   hash,
-		Role:   entity.Role(role),
+		Role:   domain.Role(role),
 	}, true
 }
 

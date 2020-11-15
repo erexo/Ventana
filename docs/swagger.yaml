@@ -17,6 +17,21 @@ definitions:
       timestamp:
         type: integer
     type: object
+  dto.Sunblind:
+    properties:
+      id:
+        type: integer
+      inputdownpin:
+        type: integer
+      inputuppin:
+        type: integer
+      name:
+        type: string
+      outputdownpin:
+        type: integer
+      outputuppin:
+        type: integer
+    type: object
   dto.Thermometer:
     properties:
       celsius:
@@ -36,6 +51,19 @@ definitions:
         type: integer
       username:
         type: string
+    type: object
+  sunblind.saveDto:
+    properties:
+      inputdownpin:
+        type: integer
+      inputuppin:
+        type: integer
+      name:
+        type: string
+      outputdownpin:
+        type: integer
+      outputuppin:
+        type: integer
     type: object
   thermal.dataDto:
     properties:
@@ -114,6 +142,123 @@ paths:
           description: OK
           schema:
             $ref: '#/definitions/user.LoginInfo'
+  /sunblind/browse:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/dto.Sunblind'
+            type: array
+      security:
+      - ApiKeyAuth: []
+  /sunblind/create:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sunblind.saveDto'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /sunblind/delete/{id}:
+    delete:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /sunblind/order:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          items:
+            type: integer
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /sunblind/toggle/{id}/{dir}:
+    post:
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: path
+        in: path
+        name: dir
+        required: true
+        type: string
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
+  /sunblind/update/{id}:
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: path
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: body
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/sunblind.saveDto'
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: string
+      security:
+      - ApiKeyAuth: []
   /thermal/browse:
     post:
       consumes:

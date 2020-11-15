@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/Erexo/Ventana/core/domain"
 	"github.com/Erexo/Ventana/core/dto"
-	"github.com/Erexo/Ventana/core/entity"
 	"github.com/go-chi/chi"
 )
 
@@ -176,7 +176,7 @@ type loginDto struct {
 type createDto struct {
 	Username string      `json:"username"`
 	Password string      `json:"password"`
-	Role     entity.Role `json:"role"`
+	Role     domain.Role `json:"role"`
 }
 
 type updatePasswordDto struct {
@@ -184,5 +184,5 @@ type updatePasswordDto struct {
 }
 
 type updateRoleDto struct {
-	Role entity.Role `json:"role"`
+	Role domain.Role `json:"role"`
 }

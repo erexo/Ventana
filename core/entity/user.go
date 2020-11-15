@@ -1,14 +1,8 @@
 package entity
 
-import "database/sql"
-
-type Role int
-
-const (
-	RoleNone  Role = 0
-	RoleGuest Role = 1
-	RoleUser  Role = 2
-	RoleAdmin Role = 3
+import (
+	"database/sql"
+	"github.com/Erexo/Ventana/core/domain"
 )
 
 type User struct {
@@ -16,5 +10,5 @@ type User struct {
 	Username string         `db:"username"`
 	Password string         `db:"password"`
 	Salt     sql.NullString `db:"salt,omitempty"`
-	Role     Role           `db:"role"`
+	Role     domain.Role    `db:"role"`
 }

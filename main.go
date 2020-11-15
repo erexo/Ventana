@@ -54,7 +54,7 @@ func panic() {
 
 func terminate(c chan os.Signal) {
 	x := <-c
-	log.Println("Terminated", x)
+	log.Println("Terminated:", x)
 	if err := infrastructure.Terminate(); err != nil {
 		log.Println("Close failed:", err)
 	}

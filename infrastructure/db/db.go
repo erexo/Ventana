@@ -52,6 +52,19 @@ func Initialize() error {
 			thermometerid INTEGER NOT NULL REFERENCES thermometer(id) ON DELETE CASCADE,
 			celsius REAL NOT NULL,
 			timestamp DATETIME NOT NULL
+		);
+		CREATE TABLE sunblind (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			name TEXT UNIQUE NOT NULL,
+			inputdownpin INTEGER NOT NULL,
+			inputuppin INTEGER NOT NULL,
+			outputdownpin INTEGER NOT NULL,
+			outputuppin INTEGER NOT NULL
+		);
+		CREATE TABLE sunblindorder (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			userid INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+			sunblindid INTEGER NOT NULL REFERENCES sunblind(id) ON DELETE CASCADE
 		);`
 	statement, err := conn.Prepare(schema)
 	if err != nil {
@@ -63,7 +76,9 @@ func Initialize() error {
 	}
 
 	initialData := `INSERT INTO user (username, password, role) VALUES ('admin', 'admin1', 3);
-		INSERT INTO thermometer (name, sensor) VALUES ('bedroom', '28-011876e3d3ff');`
+		INSERT INTO thermometer (name, sensor) VALUES ('bedroom', '28-011876e3d3ff');
+		INSERT INTO sunblind (name, inputdownpin, inputuppin, outputdownpin, outputuppin) VALUES ('livingroom', 0, 1, 2, 3);
+		`
 	statement, err = conn.Prepare(initialData)
 	if err != nil {
 		return err

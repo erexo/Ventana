@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Erexo/Ventana/core/domain"
 	"github.com/Erexo/Ventana/core/dto"
 	"github.com/Erexo/Ventana/core/entity"
 	"github.com/Erexo/Ventana/infrastructure/config"
@@ -42,7 +43,7 @@ func CreateService() *Service {
 
 type LoginInfo struct {
 	AccessToken string      `json:"accessToken"`
-	Role        entity.Role `json:"role"`
+	Role        domain.Role `json:"role"`
 }
 
 func (s *Service) Login(username, password string) (LoginInfo, error) {
@@ -56,7 +57,7 @@ func (s *Service) Login(username, password string) (LoginInfo, error) {
 		Id       int64          `db:"id"`
 		Password string         `db:"password"`
 		Salt     sql.NullString `db:"salt"`
-		Role     entity.Role    `db:"role"`
+		Role     domain.Role    `db:"role"`
 	}
 	if err := db.Get(&data, "SELECT id, password, salt, role FROM user WHERE username LIKE ?", username); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -105,7 +106,7 @@ func (s *Service) Browse(filters dto.Filters) ([]dto.User, error) {
 	return ret, err
 }
 
-func (s *Service) Create(username, password string, role entity.Role) error {
+func (s *Service) Create(username, password string, role domain.Role) error {
 	if err := entity.ValidateName(&username); err != nil {
 		return fmt.Errorf("Username: %w", err)
 	}
@@ -135,7 +136,7 @@ func (s *Service) Create(username, password string, role entity.Role) error {
 	return nil
 }
 
-func (s *Service) UpdateRole(id int64, role entity.Role) error {
+func (s *Service) UpdateRole(id int64, role domain.Role) error {
 	if err := validateRole(role); err != nil {
 		return err
 	}
@@ -183,10 +184,10 @@ func (s *Service) Delete(id int64) error {
 	return nil
 }
 
-func (s *Service) Verify(id int64, hash string, role entity.Role) bool {
+func (s *Service) Verify(id int64, hash string, role domain.Role) bool {
 	var data struct {
 		Hash string      `db:"password"`
-		Role entity.Role `db:"role"`
+		Role domain.Role `db:"role"`
 	}
 	if err := db.Get(&data, "SELECT password, role FROM user WHERE id=?", id); err != nil {
 		return false
@@ -203,8 +204,8 @@ func validatePassword(password *string) error {
 	return nil
 }
 
-func validateRole(role entity.Role) error {
-	if role == entity.RoleNone {
+func validateRole(role domain.Role) error {
+	if role == domain.RoleNone {
 		return errors.New("Invalid role")
 	}
 	return nil
