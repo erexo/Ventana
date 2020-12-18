@@ -24,48 +24,7 @@ var doc = `{
     "host": "{{.Host}}",
     "basePath": "{{.BasePath}}",
     "paths": {
-        "/": {
-            "get": {
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "type": "string"
-                        }
-                    }
-                }
-            }
-        },
-        "/login": {
-            "post": {
-                "consumes": [
-                    "application/json"
-                ],
-                "produces": [
-                    "application/json"
-                ],
-                "parameters": [
-                    {
-                        "description": "body",
-                        "name": "body",
-                        "in": "body",
-                        "required": true,
-                        "schema": {
-                            "$ref": "#/definitions/user.loginDto"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "OK",
-                        "schema": {
-                            "$ref": "#/definitions/user.LoginInfo"
-                        }
-                    }
-                }
-            }
-        },
-        "/sunblind/browse": {
+        "/api/light/browse": {
             "post": {
                 "security": [
                     {
@@ -84,14 +43,14 @@ var doc = `{
                         "schema": {
                             "type": "array",
                             "items": {
-                                "$ref": "#/definitions/dto.Sunblind"
+                                "$ref": "#/definitions/dto.Light"
                             }
                         }
                     }
                 }
             }
         },
-        "/sunblind/create": {
+        "/api/light/create": {
             "post": {
                 "security": [
                     {
@@ -111,7 +70,7 @@ var doc = `{
                         "in": "body",
                         "required": true,
                         "schema": {
-                            "$ref": "#/definitions/sunblind.saveDto"
+                            "$ref": "#/definitions/light.saveDto"
                         }
                     }
                 ],
@@ -125,7 +84,7 @@ var doc = `{
                 }
             }
         },
-        "/sunblind/delete/{id}": {
+        "/api/light/delete/{id}": {
             "delete": {
                 "security": [
                     {
@@ -151,7 +110,7 @@ var doc = `{
                 }
             }
         },
-        "/sunblind/order": {
+        "/api/light/order": {
             "post": {
                 "security": [
                     {
@@ -188,7 +147,226 @@ var doc = `{
                 }
             }
         },
-        "/sunblind/toggle/{id}/{dir}": {
+        "/api/light/toggle/{id}": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "path",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/light/update/{id}": {
+            "patch": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "path",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/light.saveDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/login": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/user.loginDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/user.LoginInfo"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sunblind/browse": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "$ref": "#/definitions/dto.Sunblind"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sunblind/create": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "text/plain"
+                ],
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/sunblind.saveDto"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sunblind/delete/{id}": {
+            "delete": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "path",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sunblind/order": {
+            "post": {
+                "security": [
+                    {
+                        "ApiKeyAuth": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "parameters": [
+                    {
+                        "description": "body",
+                        "name": "body",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "type": "array",
+                            "items": {
+                                "type": "integer"
+                            }
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                }
+            }
+        },
+        "/api/sunblind/toggle/{id}/{dir}": {
             "post": {
                 "security": [
                     {
@@ -221,7 +399,7 @@ var doc = `{
                 }
             }
         },
-        "/sunblind/update/{id}": {
+        "/api/sunblind/update/{id}": {
             "patch": {
                 "security": [
                     {
@@ -262,7 +440,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/browse": {
+        "/api/thermal/browse": {
             "post": {
                 "security": [
                     {
@@ -288,7 +466,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/create": {
+        "/api/thermal/create": {
             "post": {
                 "security": [
                     {
@@ -322,7 +500,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/data": {
+        "/api/thermal/data": {
             "post": {
                 "security": [
                     {
@@ -359,7 +537,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/delete/{id}": {
+        "/api/thermal/delete/{id}": {
             "delete": {
                 "security": [
                     {
@@ -385,7 +563,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/order": {
+        "/api/thermal/order": {
             "post": {
                 "security": [
                     {
@@ -422,7 +600,7 @@ var doc = `{
                 }
             }
         },
-        "/thermal/update/{id}": {
+        "/api/thermal/update/{id}": {
             "patch": {
                 "security": [
                     {
@@ -463,7 +641,7 @@ var doc = `{
                 }
             }
         },
-        "/user/browse": {
+        "/api/user/browse": {
             "post": {
                 "security": [
                     {
@@ -500,7 +678,7 @@ var doc = `{
                 }
             }
         },
-        "/user/create": {
+        "/api/user/create": {
             "post": {
                 "security": [
                     {
@@ -534,7 +712,7 @@ var doc = `{
                 }
             }
         },
-        "/user/delete/{id}": {
+        "/api/user/delete/{id}": {
             "delete": {
                 "security": [
                     {
@@ -560,7 +738,7 @@ var doc = `{
                 }
             }
         },
-        "/user/update/password/{id}": {
+        "/api/user/update/password/{id}": {
             "patch": {
                 "security": [
                     {
@@ -595,7 +773,7 @@ var doc = `{
                 }
             }
         },
-        "/user/update/role/{id}": {
+        "/api/user/update/role/{id}": {
             "patch": {
                 "security": [
                     {
@@ -646,6 +824,26 @@ var doc = `{
                 },
                 "Offset": {
                     "type": "integer"
+                }
+            }
+        },
+        "dto.Light": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "integer"
+                },
+                "inputpin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "outputpin": {
+                    "type": "integer"
+                },
+                "position": {
+                    "type": "boolean"
                 }
             }
         },
@@ -711,6 +909,20 @@ var doc = `{
                 },
                 "username": {
                     "type": "string"
+                }
+            }
+        },
+        "light.saveDto": {
+            "type": "object",
+            "properties": {
+                "inputpin": {
+                    "type": "integer"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "outputpin": {
+                    "type": "integer"
                 }
             }
         },

@@ -3,6 +3,7 @@
     "JwtToken": "4H9HtjtkYuaxuNAhZSy7SLQ8hCvqV79B",
     "ApiAddr": ":4235",
     "UseSwagger": true,
+    "UseWebDir": true,
     "ThermalUpdateInterval": 300000,
     "GenerateRandomTemperature": false
 }

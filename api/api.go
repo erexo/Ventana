@@ -3,10 +3,13 @@ package api
 import (
 	"log"
 	"net/http"
+	"os"
+	"path"
 
 	"github.com/Erexo/Ventana/api/controller"
 	_ "github.com/Erexo/Ventana/docs"
 	"github.com/Erexo/Ventana/infrastructure/config"
+	"github.com/Erexo/Ventana/infrastructure/light"
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
 	"github.com/Erexo/Ventana/infrastructure/thermal"
 	"github.com/Erexo/Ventana/infrastructure/user"
@@ -14,6 +17,11 @@ import (
 	"github.com/go-chi/cors"
 	"github.com/go-chi/jwtauth"
 	httpSwagger "github.com/swaggo/http-swagger"
+)
+
+const (
+	apiPrefix = "/api"
+	webDir    = "www"
 )
 
 type Controller interface {
@@ -26,7 +34,7 @@ type UnauthorizedController interface {
 	UnauthorizedRoute(r chi.Router)
 }
 
-func Run(us *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
+func Run(us *user.Service, ts *thermal.Service, ss *sunblind.Service, ls *light.Service) error {
 	config := config.GetConfig()
 	if !config.ApiAddr.Valid {
 		return nil
@@ -37,10 +45,20 @@ func Run(us *user.Service, ss *sunblind.Service, ts *thermal.Service) error {
 
 	token := jwtauth.New("HS256", []byte(config.JwtToken), nil)
 	registerController(r, us, token, user.CreateController(us))
-	registerController(r, us, token, sunblind.CreateController(ss))
 	registerController(r, us, token, thermal.CreateController(ts))
+	registerController(r, us, token, sunblind.CreateController(ss))
+	registerController(r, us, token, light.CreateController(ls))
 
-	r.Get("/", home)
+	if config.UseWebDir {
+		if _, err := os.Stat(webDir); os.IsNotExist(err) {
+			log.Println("Unable to localize web directory")
+		} else {
+			r.Group(func(r chi.Router) {
+				r.Use(redirect)
+				r.Handle("/*", http.FileServer(http.Dir("www")))
+			})
+		}
+	}
 
 	if config.UseSwagger {
 		r.Mount("/swagger", httpSwagger.WrapHandler)
@@ -63,12 +81,12 @@ func registerController(r chi.Router, us *user.Service, token *jwtauth.JWTAuth, 
 	r.Group(func(r chi.Router) {
 		r.Use(jwtauth.Verifier(token))
 		r.Use(authenticate(us))
-		r.Route(c.GetPrefix(), c.Route)
+		r.Route(getUrl(c.GetPrefix()), c.Route)
 	})
 
 	if uc, ok := c.(UnauthorizedController); ok {
 		r.Group(func(r chi.Router) {
-			r.Route(uc.GetUnauthorizedPrefix(), uc.UnauthorizedRoute)
+			r.Route(getUrl(uc.GetUnauthorizedPrefix()), uc.UnauthorizedRoute)
 		})
 	}
 }
@@ -90,8 +108,6 @@ func authenticate(us *user.Service) func(http.Handler) http.Handler {
 	}
 }
 
-// @Success 200 {string} plain
-// @Router / [get]
-func home(w http.ResponseWriter, r *http.Request) {
-	w.Write([]byte("Ventana"))
+func getUrl(p string) string {
+	return path.Join(apiPrefix, p)
 }

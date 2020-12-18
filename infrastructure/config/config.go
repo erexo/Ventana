@@ -16,6 +16,7 @@ type Configuration struct {
 	JwtToken                  string      `json:"jwttoken"`
 	ApiAddr                   null.String `json:"apiaddr"`
 	UseSwagger                bool        `json:"useswagger"`
+	UseWebDir                 bool        `json:"usewebdir"`
 	ThermalUpdateInterval     int         `json:"thermalupdateinterval"`
 	GenerateRandomTemperature bool        `json:"GenerateRandomTemperature"`
 }
@@ -51,6 +52,7 @@ func defaultConfiguration() *Configuration {
 		JwtToken:                  "secret",
 		ApiAddr:                   null.String{},
 		UseSwagger:                false,
+		UseWebDir:                 true,
 		ThermalUpdateInterval:     60000,
 		GenerateRandomTemperature: false,
 	}

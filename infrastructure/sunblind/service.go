@@ -24,6 +24,7 @@ func CreateService(pm *gpio.Service) *Service {
 		gs: pm,
 	}
 }
+
 func (s *Service) SaveOrder(userId int64, order []int64) error {
 	tx, close, err := db.GetTransaction()
 	if err != nil {
@@ -201,7 +202,7 @@ func (s *Service) Delete(id int64) error {
 	return nil
 }
 
-func (s *Service) ToggleSunblind(id int64, down bool) error {
+func (s *Service) Toggle(id int64, down bool) error {
 	var query string
 	if down {
 		query = "SELECT inputdownpin FROM sunblind WHERE id=?"

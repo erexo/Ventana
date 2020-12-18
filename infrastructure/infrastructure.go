@@ -5,6 +5,7 @@ import (
 
 	"github.com/Erexo/Ventana/api"
 	"github.com/Erexo/Ventana/infrastructure/gpio"
+	"github.com/Erexo/Ventana/infrastructure/light"
 	"github.com/Erexo/Ventana/infrastructure/sunblind"
 	"github.com/Erexo/Ventana/infrastructure/thermal"
 	"github.com/Erexo/Ventana/infrastructure/user"
@@ -21,6 +22,7 @@ func Run() {
 	gs = gpio.CreateService()
 	us = user.CreateService()
 	ss = sunblind.CreateService(gs)
+	ls := light.CreateService(gs)
 	if err := ss.Load(); err != nil {
 		log.Println("SunblindService error:", err)
 	} else {
@@ -34,7 +36,7 @@ func Run() {
 	}
 
 	// todo, add flag to run api
-	if err := api.Run(us, ss, ts); err != nil {
+	if err := api.Run(us, ts, ss, ls); err != nil {
 		log.Println("Api error:", err)
 	}
 }

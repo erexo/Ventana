@@ -42,7 +42,7 @@ func (c *Controller) UnauthorizedRoute(r chi.Router) {
 	r.Post("/create", c.create)
 }
 
-// @Router /login [post]
+// @Router /api/login [post]
 // @Param body body loginDto true "body"
 // @Success 200 {object} user.LoginInfo
 // @Accept  json
@@ -68,7 +68,7 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 	w.Write(retj)
 }
 
-// @Router /user/browse [post]
+// @Router /api/user/browse [post]
 // @Param body body dto.Filters true "body"
 // @Success 200 {array} dto.User
 // @Accept  json
@@ -91,7 +91,7 @@ func (c *Controller) browse(w http.ResponseWriter, r *http.Request) {
 	w.Write(retj)
 }
 
-// @Router /user/create [post]
+// @Router /api/user/create [post]
 // @Param body body createDto true "body"
 // @Success 200 {string} plain
 // @Accept  json
@@ -109,7 +109,7 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /user/update/password/{id} [patch]
+// @Router /api/user/update/password/{id} [patch]
 // @Param id path int true "path"
 // @Param body body updatePasswordDto true "body"
 // @Success 200 {string} plain
@@ -131,7 +131,7 @@ func (c *Controller) updatePassword(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /user/update/role/{id} [patch]
+// @Router /api/user/update/role/{id} [patch]
 // @Param id path int true "path"
 // @Param body body updateRoleDto true "body"
 // @Success 200 {string} plain
@@ -153,7 +153,7 @@ func (c *Controller) updateRole(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /user/delete/{id} [delete]
+// @Router /api/user/delete/{id} [delete]
 // @Param id path int true "path"
 // @Success 200 {string} plain
 // @Security ApiKeyAuth

@@ -33,7 +33,7 @@ func (c *Controller) Route(r chi.Router) {
 	r.Post("/toggle/{id}/{dir}", c.toggle)
 }
 
-// @Router /sunblind/order [post]
+// @Router /api/sunblind/order [post]
 // @Param body body []int64 true "body"
 // @Success 200 {string} plain
 // @Accept  json
@@ -57,7 +57,7 @@ func (c *Controller) order(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /sunblind/browse [post]
+// @Router /api/sunblind/browse [post]
 // @Success 200 {array} dto.Sunblind
 // @Accept  json
 // @Produce  json
@@ -79,7 +79,7 @@ func (c *Controller) browse(w http.ResponseWriter, r *http.Request) {
 	w.Write(retj)
 }
 
-// @Router /sunblind/create [post]
+// @Router /api/sunblind/create [post]
 // @Param body body saveDto true "body"
 // @Success 200 {string} plain
 // @Accept  json
@@ -97,7 +97,7 @@ func (c *Controller) create(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /sunblind/update/{id} [patch]
+// @Router /api/sunblind/update/{id} [patch]
 // @Param id path int true "path"
 // @Param body body saveDto true "body"
 // @Success 200 {string} plain
@@ -121,7 +121,7 @@ func (c *Controller) update(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// @Router /sunblind/delete/{id} [delete]
+// @Router /api/sunblind/delete/{id} [delete]
 // @Param id path int true "path"
 // @Success 200 {string} plain
 // @Security ApiKeyAuth
@@ -137,7 +137,7 @@ func (c *Controller) delete(w http.ResponseWriter, r *http.Request) {
 
 }
 
-// @Router /sunblind/toggle/{id}/{dir} [post]
+// @Router /api/sunblind/toggle/{id}/{dir} [post]
 // @Param id path int true "path"
 // @Param dir path string true "path"
 // @Success 200 {string} plain
@@ -149,7 +149,10 @@ func (c *Controller) toggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dir := chi.URLParam(r, "dir")
-	c.s.ToggleSunblind(id, dir == "down")
+	if err := c.s.Toggle(id, dir == "down"); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 }
 
 type saveDto struct {

@@ -65,6 +65,17 @@ func Initialize() error {
 			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
 			userid INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
 			sunblindid INTEGER NOT NULL REFERENCES sunblind(id) ON DELETE CASCADE
+		);
+		CREATE TABLE light (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			name TEXT UNIQUE NOT NULL,
+			inputpin INTEGER NOT NULL,
+			outputpin INTEGER NOT NULL
+		);
+		CREATE TABLE lightorder (
+			id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+			userid INTEGER NOT NULL REFERENCES user(id) ON DELETE CASCADE,
+			lightid INTEGER NOT NULL REFERENCES light(id) ON DELETE CASCADE
 		);`
 	statement, err := conn.Prepare(schema)
 	if err != nil {

@@ -75,6 +75,20 @@ func (s *Service) IsPinRegistered(pins ...domain.Pin) error {
 	return nil
 }
 
+func (s *Service) GetPinState(inputPin domain.Pin) bool {
+	if !s.isActive {
+		return defaultPinState
+	}
+	s.pinMux.Lock()
+	defer s.pinMux.Unlock()
+	for k, v := range s.pinPairs {
+		if inputPin == k {
+			return v.outputState
+		}
+	}
+	return defaultPinState
+}
+
 func (s *Service) RegisterPinPair(inputPin, outputPin domain.Pin, pairType enum.PairType) error {
 	if !s.isActive {
 		return inactiveErr
