@@ -2,6 +2,7 @@ package sunblind
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -149,7 +150,10 @@ func (c *Controller) toggle(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	dir := chi.URLParam(r, "dir")
-	if err := c.s.Toggle(id, dir == "down"); err != nil {
+	i, err := strconv.Atoi(dir)
+	if err != nil {
+		log.Printf("Unable to read toggle direction '%s' for sunblind '%d'", dir, id)
+	} else if err := c.s.Toggle(id, i == 0); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
