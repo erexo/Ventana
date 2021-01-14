@@ -153,7 +153,7 @@ func (s *Service) UpdatePassword(id int64, password string) error {
 	}
 
 	var salt sql.NullString
-	if err := db.Scan("SELECT salt FROM user WHERE id=?", []interface{}{id}, salt); err != nil {
+	if err := db.Scan("SELECT salt FROM user WHERE id=?", id, &salt); err != nil {
 		return err
 	}
 	if salt.Valid {

@@ -147,13 +147,13 @@ func GetTransaction() (*sql.Tx, func() error, error) {
 	}, nil
 }
 
-func Scan(query string, args interface{}, dest ...interface{}) error {
+func Scan(query string, id int64, dest ...interface{}) error {
 	conn, err := GetConnection()
 	if err != nil {
 		return err
 	}
 	defer conn.Close()
-	conn.QueryRow(query, args).Scan(dest)
+	conn.QueryRow(query, id).Scan(dest...)
 	return nil
 }
 
